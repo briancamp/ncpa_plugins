@@ -1,0 +1,23 @@
+#!/bin/sh
+
+if [ -z "$2" ]; then
+  echo "Usage: $0 <ip address> <connection name>"
+  echo
+  echo "Eg: $0 8.8.8.8 google_dns"
+  echo
+  exit 2
+fi
+
+
+host="$1"
+display_name="$2"
+
+plugin_out=$(sudo /usr/lib64/nagios/plugins/check_fping -H "$host")
+plugin_code="$?"
+
+echo "$display_name connectivity $plugin_out"
+if [ "$plugin_code" -eq 0 ]; then
+  exit 0
+else
+  exit 2
+fi

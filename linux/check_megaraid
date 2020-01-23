@@ -1,0 +1,74 @@
+#!/bin/sh
+
+
+PATH="$PATH":/opt/MegaRAID/MegaCli/
+
+
+get_states() {
+  local info_out
+  info_out="$($sudo "$MegaCli" -LDPDInfo -aALL -NoLog 2>&1)"
+  if [ $? -ne 0 ]; then
+    echo "$MegaCli execution failed. Output: $info_out"
+    exit 2
+  fi
+
+  local state_lines="$(echo "$info_out" | \
+                       egrep -i '^state[[:space:]]*:[[:space:]]*.+')"
+  local states="$(echo "$state_lines" | \
+                  sed -r 's/^state[[:space:]]*:[[:space:]]*//I')"
+
+  if [ -z "$states" ]; then
+    echo "$MegaCli execution failed. Could not get states. Output: $info_out"
+    exit 2
+  fi
+
+  echo "$states"
+}
+
+
+# Find MegaCLI Binary
+MegaCli=
+for bin in MegaCli MegaCli64 megacli megacli64; do
+  which_out="$(which "$bin" 2> /dev/null)"
+  if [ $? -eq 0 ]; then
+    MegaCli="$which_out"
+    break
+  fi
+done
+if [ -z "$MegaCli" ]; then
+  echo "Could not find a MegaCli binary to check RAID status."
+  exit 2
+fi
+
+# Prefix with "sudo" if not running as root already
+if [ "$(id -u)" -eq 0 ]; then
+  sudo=
+else
+  sudo="sudo -n"
+fi
+
+# Try to gather states and exit critical (2) if unable
+states="$(get_states)"
+if [ $? -ne 0 ]; then
+  echo "$states"
+  exit 2
+fi
+
+# RAID is Optimal/OK only if all arrays report as "Optimal"
+status=Unknown
+for state in $states; do
+  if echo "$state" | grep -qi optimal; then
+    status=Optimal
+  else
+    status=Degraded
+    break
+  fi
+done
+
+# Nagios message and exit code
+echo "MegaRAID is $status"
+if [ "$status" == "Optimal" ]; then
+  exit 0
+else
+  exit 2
+fi

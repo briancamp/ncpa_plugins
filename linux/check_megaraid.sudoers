@@ -1,0 +1,1 @@
+nagios ALL=(ALL) NOPASSWD: /opt/MegaRAID/MegaCli/MegaCli64 -LDPDInfo -aALL -NoLog

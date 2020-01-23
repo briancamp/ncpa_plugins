@@ -1,0 +1,43 @@
+#!/bin/sh
+
+
+if ! [ -f /proc/mdstat ]; then
+  echo "No /proc/mdstat file. No MD RAID support in kernel?"
+  exit 2
+fi
+
+# Lines containing raid status
+status_lines="$(egrep '\[[[:digit:]]+/[[:digit:]]+\]' /proc/mdstat)"
+if ! echo "$status_lines" | fgrep -q /; then
+  echo "Couldn't find any status lines in /proc/mdstat. No MD RAID configured?"
+  exit 2
+fi
+
+# Counts of active vs configured drives in arrays. One per line.
+# Eg OK (all are active): 2|2
+# Eg Failed (one is MIA): 1|2
+raid_counts="$(
+  echo "$status_lines" | \
+       sed -r 's/.*\[([[:digit:]]+)\/([[:digit:]]+).*\]/\1|\2/'
+)"
+
+# Status is OK only if all drives are active in all arrays
+md_status=Unknown
+for counts in $raid_counts; do
+  active="$(echo "$counts" | sed 's/|.*//')"
+  configured="$(echo "$counts" | sed 's/.*|//')"
+  if [ -n "$active" ] && [ "$active" -eq "$configured" ]; then
+    md_status=OK
+  else
+    md_status=Degraded
+    break
+  fi
+done
+
+# Report status string and code
+echo "MD RAID status is $md_status"
+if [ "$md_status" == OK ]; then
+  exit 0
+else
+  exit 2
+fi

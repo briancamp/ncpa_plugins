@@ -1,0 +1,39 @@
+#!/bin/sh
+
+export PATH="$PATH":/usr/lib64/nagios/plugins
+
+DefaultCritical=90
+DefaultWarn=80
+
+
+# Validate threshold value, set as default(if empty), and invert it
+get_threshold_val() {
+  local user_supplied="$1"
+  local default_val="$2"
+
+  # Validate & default
+  local threshold="$(echo "$user_supplied" | sed 's/[^0-9]//g')"
+  if [ -z "$threshold" ] || [ "$threshold" -gt 100 ]; then
+    threshold="$default_val"
+  fi
+
+  # Invert the threshold, so 10% becomes 90%. check_disk is weird.
+  local inv_threshold="$(expr 100 - "$threshold")"
+
+  echo "$inv_threshold"
+}
+
+
+if ! which check_disk > /dev/null 2>&1; then
+  echo No check_disk command found. Verify nagios-plugins-disk installation.
+  exit 2
+fi
+
+# Critical threshold validation & default
+critical="$(get_threshold_val "$1" "$DefaultCritical")"
+warn="$(get_threshold_val "$2" "$DefaultWarn")"
+
+# -I flags are regular expressions for devices/filesystems to ignore
+exec check_disk -c "$critical"% -w "$warn"% -A -e \
+  -I '^(/mnt|/run|/sys)' \
+  -I '^/dev(/shm)?$'
