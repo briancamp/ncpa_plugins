@@ -1,4 +1,4 @@
- #
+#
 # Check the expiration of the Microsoft NPS Extension certificate and begin reporting critical at 60 days.
 #
 
