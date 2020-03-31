@@ -35,5 +35,5 @@ warn="$(get_threshold_val "$2" "$DefaultWarn")"
 
 # -I flags are regular expressions for devices/filesystems to ignore
 exec check_disk -c "$critical"% -w "$warn"% -A -e \
-  -I '^(/mnt|/run|/sys)' \
+  -I '^(/mnt|/run|/sys|/var/lib/containers)' \
   -I '^/dev(/shm)?$'
